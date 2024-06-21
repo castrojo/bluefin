@@ -10,8 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-      - uses: stacklok/frizbee-action@v0.0.2
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+      - uses: stacklok/frizbee-action@a0f3391cbe93a54e2a68cfaca2283f8cf3fd72ea # v0.0.2
         env:
           GITHUB_TOKEN: ${{ secrets.FRIZBEE_TOKEN }}
         with:
