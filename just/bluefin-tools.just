@@ -138,6 +138,7 @@ ollama-web: ollama
     Environment=OLLAMA_BASE_URL=http://ollama:11434
     Environment=WEBUI_SECRET_KEY=abc123
     Environment=DEFAULT_USER_ROLE=admin
+    Volume=open-webui:/app/backend/data
     # Open WebUI does not allow access without a user account, nor does it allow
     # account creation via environment variables.
     Environment=ENABLE_SIGNUP=true
@@ -158,6 +159,7 @@ ollama-web: ollama
     fi
     systemctl --user daemon-reload
     systemctl --user start ollama-web.service
+    echo "Ollama Web UI container started. You can access it at http://localhost:8080"
 
 # Setup InvokeAI in a container
 invokeai:
@@ -212,7 +214,7 @@ invokeai:
     ContainerName=invokeai
     AutoUpdate=registry
     Environment=INVOKEAI_ROOT=/var/lib/invokeai
-    PublishPort=9090:9090
+    PublishPort=9091:9090
     Volume=invokeai.volume:/var/lib/invokeai
     SecurityLabelDisable=true
     ${CUSTOM_ARGS}
@@ -235,4 +237,4 @@ invokeai:
     fi
     systemctl --user daemon-reload
     systemctl --user start invokeai.service
-    echo "InvokeAI container started. You can access it at http://localhost:9090"
+    echo "InvokeAI container started. You can access it at http://localhost:9091"
