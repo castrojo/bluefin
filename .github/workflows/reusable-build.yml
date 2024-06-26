@@ -204,18 +204,6 @@ jobs:
           extra-args: |
             --target=${{ env.TARGET_NAME }}
 
-      - name: Sign kernel
-        uses: ublue-os/kernel-signer@ba1d52542bbfd0db42a528f52a114e12667169e5 # v0.2.3
-        if: github.event_name != 'pull_request'
-        with:
-          image: ${{ steps.build_image.outputs.image }}
-          default-tag: ${{ env.DEFAULT_TAG }}
-          privkey: ${{ secrets.AKMOD_PRIVKEY_20230518 }}
-          pubkey: /etc/pki/akmods/certs/akmods-ublue.der
-          tags: ${{ steps.build_image.outputs.tags }}
-          kernel_suffix: ${{ env.KERNEL_SUFFIX }}
-          strip: false
-
       # Workaround bug where capital letters in your GitHub username make it impossible to push to GHCR.
       # https://github.com/macbre/push-to-ghcr/issues/12
       - name: Lowercase Registry
