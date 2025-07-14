@@ -1,0 +1,37 @@
+name: Reference Architecture Submission
+description: 
+title: "[Reference: "]
+labels: ["reference-architecture"]
+body:
+- type: markdown
+  attributes:
+    value: |
+      **Purpose of This Issue**
+
+      This is a submission to the reference architecture process.
+
+      Should maintainers have sensitive, confidential, or private factors and concerns that influence or affect the project, they are encouraged to contact the TOC directly through CNCF Staff, the private-toc mailing list, Slack, or email.
+- type: input
+  id: name
+  attributes: 
+    label: Name
+    description: What is the name of this architecture submission?
+    placeholder: e.g., My Reference Architecture
+  validations:
+    required: true
+- type: input
+  id: affiliation
+  attributes:
+    label: Affiliation
+    description: CNCF Member Companies involved
+    placeholder: Architectures must be submitted by at least one CNCF Member Company.
+  validations:
+    required: true
+- type: textarea
+  id: description
+  attributes:
+    label: Description
+    description: Add the thing
+    placeholder: Links to devstats, issues, PRs, slack messages, etc. are all helpful but require your context to assist the TOC in understanding the concern.
+  validations:
+    required: true
