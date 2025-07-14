@@ -23,8 +23,8 @@ body:
    id: affiliation
    attributes:
      label: Affiliation
-     description: CNCF Member Companies involved
-     placeholder: Architectures must be submitted by at least one CNCF Member Company.
+     description: Architectures must be submitted by at least one CNCF Member Company
+     placeholder: List of Companies
    validations:
      required: true
  - type: textarea
