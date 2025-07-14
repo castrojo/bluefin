@@ -43,3 +43,19 @@ body:
      placeholder: Do you work for a central IT organization in your company?  or for a team of a specific department?
    validations:
      required: true
+ - type: textarea
+   id: platform-topology-internal
+   attributes:
+     label: Internal Topology
+     description: Describe your Internal Platform Engineering Team Topology
+     placeholder: TBD
+   validations:
+     required: true
+ - type: textarea
+   id: platform-topology-external
+   attributes:
+     label: External Topology
+     description: Describe your External Platform Engineering Team Topology
+     placeholder: TBD
+   validations:
+     required: true
