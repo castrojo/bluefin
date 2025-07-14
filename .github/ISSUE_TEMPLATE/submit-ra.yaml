@@ -27,7 +27,7 @@ body:
      placeholder: List of Companies
    validations:
      required: true
- - type: textarea0
+ - type: textarea
    id: description
    attributes:
      label: Form Section 
@@ -35,7 +35,7 @@ body:
      placeholder: Submission Section
    validations:
      required: true
-- type: textarea1
+- type: textarea
    id: description
    attributes:
      label: Form Section 
@@ -43,7 +43,7 @@ body:
      placeholder: Submission Section
    validations:
      required: true
-- type: textarea2
+- type: textarea
    id: description
    attributes:
      label: Form Section 
