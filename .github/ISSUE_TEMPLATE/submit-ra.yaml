@@ -30,8 +30,16 @@ body:
  - type: textarea
    id: description
    attributes:
-     label: Form Section 
+     label: Organizational Description
      description: Describe your Organization 
      placeholder: A brief description of your organization. e.g. a paragraph from an about page on your company's website
+   validations:
+     required: true
+ - type: textarea
+   id: team
+   attributes:
+     label: Team Description
+     description: Describe your Team
+     placeholder: Do you work for a central IT organization in your company?  or for a team of a specific department?
    validations:
      required: true
