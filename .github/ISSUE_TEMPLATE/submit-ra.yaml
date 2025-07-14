@@ -32,7 +32,6 @@ body:
    attributes:
      label: Form Section 
      description: Describe your Organization 
-     placeholder: A brief description of your organization. e.g. a paragraph from an about
-page on your company's website
+     placeholder: A brief description of your organization. e.g. a paragraph from an about page on your company's website
    validations:
      required: true
