@@ -1,5 +1,5 @@
-name: Reference Architecture Submission
-description: Submit a Reference Architecture for Community Review
+name: "Reference Architecture Submission"
+description: "Submit a Reference Architecture for Community Review"
 title: "[Reference: "]
 labels: ["reference-architecture"]
 body:
