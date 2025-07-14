@@ -27,11 +27,27 @@ body:
      placeholder: List of Companies
    validations:
      required: true
- - type: textarea
+ - type: textarea0
    id: description
    attributes:
-     label: Description
+     label: Form Section 
      description: Add the thing
-     placeholder: Links to devstats, issues, PRs, slack messages, etc. are all helpful but require your context to assist the TOC in understanding the concern.
+     placeholder: Submission Section
+   validations:
+     required: true
+- type: textarea1
+   id: description
+   attributes:
+     label: Form Section 
+     description: Add the thing
+     placeholder: Submission Section
+   validations:
+     required: true
+- type: textarea2
+   id: description
+   attributes:
+     label: Form Section 
+     description: Add the thing
+     placeholder: Submission Section
    validations:
      required: true
