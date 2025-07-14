@@ -31,23 +31,8 @@ body:
    id: description
    attributes:
      label: Form Section 
-     description: Add the thing
-     placeholder: Submission Section
-   validations:
-     required: true
- - type: textarea
-   id: description
-   attributes:
-     label: Form Section 
-     description: Add the thing
-     placeholder: Submission Section
-   validations:
-     required: true
- - type: textarea
-   id: description
-   attributes:
-     label: Form Section 
-     description: Add the thing
-     placeholder: Submission Section
+     description: Describe your Organization 
+     placeholder: A brief description of your organization. e.g. a paragraph from an about
+page on your company's website
    validations:
      required: true
