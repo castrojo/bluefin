@@ -9,8 +9,9 @@ body:
        **Purpose of This Issue**
  
        This is a submission to the reference architecture process.
+
+       Add more information here for submitters...
  
-       Should maintainers have sensitive, confidential, or private factors and concerns that influence or affect the project, they are encouraged to contact the TOC directly through CNCF Staff, the private-toc mailing list, Slack, or email.
  - type: input
    id: name
    attributes: 
