@@ -5,12 +5,14 @@ body:
     attributes:
       value: |
         Thank you for taking the time to fill out this bug report! (She bites sometimes)
+
+        Check out the [Project Opportunities](https://github.com/ublue-os/bluefin/discussions/3423) to see if there's a place you can help out!
   - type: textarea
     id: describe-bug
     attributes:
       label: Describe the bug
       description: A clear and concise description of what the bug is.
-      placeholder: Tell us what happened!
+      placeholder: Tell us what happened! WE DO NOT SUPPORT REBASING FROM ANOTHER OS! If you went off the beaten path we cannot help you!
       value: "When I entered 2 + 2, I got the answer 6."
     validations:
       required: true
@@ -26,17 +28,17 @@ body:
   - type: textarea
     id: version
     attributes:
-      label: Output of `rpm-ostree status`
-      description: Please run `rpm-ostree status` and paste the output here, it is the only way we can verify the exact image you are on for debugging purposes.
+      label: Output of `bootc status`
+      description: Please run `sudo bootc status` and paste the output here, it is the only way we can verify the exact image you are on for debugging purposes.
       render: shell
   - type: textarea
     id: groups
     attributes:
       label: Output of `groups`
       description: Please run `groups` and paste the output here.
-      render: shell    
+      render: shell
   - type: textarea
     id: extra-context
     attributes:
       label: Extra information or context
-      description: Add any other context about the problem here.
+      description: If you are reporting a regression, use `ujust rebase-helper` to find the version that used to work. Report the working version and the broken version so that other users can rebase and confirm the issue!
