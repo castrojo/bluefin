@@ -1,3 +1,8 @@
+<!-- POWERLEVEL MANAGED - Do not edit this section manually -->
+<!-- Project: castrojo/bluefin | Upstream: ublue-os/bluefin -->
+<!-- This is a fork. PRs go to upstream. Fork-only changes stay on origin/main. -->
+<!-- END POWERLEVEL MANAGED -->
+
 # Bluefin Copilot Instructions
 
 This document provides essential information for coding agents working with the Bluefin repository to minimize exploration time and avoid common build failures.
