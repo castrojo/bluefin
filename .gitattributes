@@ -11,3 +11,5 @@
 *.json linguist-detectable=true
 *.json linguist-documentation=false
 *.json linguist-language=JSON
+
+AGENTS.md export-ignore
