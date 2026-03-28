@@ -177,8 +177,7 @@ dnf -y swap \
     fwupd fwupd
 
 # TODO: remove me on next flatpak release when preinstall landed in Fedora
-# Not needed on F44+ where flatpak ships the preinstall feature natively
-if [[ "$(rpm -E %fedora)" -ge "42" ]] && [[ "$(rpm -E %fedora)" -lt "44" ]]; then
+if [[ "$(rpm -E %fedora)" -ge "42" ]]; then
   dnf -y copr enable ublue-os/flatpak-test
   dnf -y copr disable ublue-os/flatpak-test
   dnf -y --repo=copr:copr.fedorainfracloud.org:ublue-os:flatpak-test swap flatpak flatpak
