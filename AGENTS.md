@@ -12,6 +12,12 @@ This document provides essential information for coding agents working with the 
 - **Build System**: Just (command runner), Podman/Docker containers, GitHub Actions
 - **Target**: desktop OS with two variants (base + developer experience)
 
+## Skills
+
+cat ~/src/skills/workflow/SKILL.md         # git push confirmation, CI watch, upstream PR rules
+cat ~/src/skills/bluefin-build/SKILL.md    # build, validation, PR workflow
+cat ~/src/skills/bluefin-variants/SKILL.md # image/stream matrix reference
+
 ## Repository Structure
 
 ### Root Directory Files
