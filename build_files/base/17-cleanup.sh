@@ -45,7 +45,7 @@ systemctl disable flatpak-add-fedora-repos.service
 # We only need to clean up repos that were enabled during the build process.
 
 # Disable third-party repos
-for repo in negativo17-fedora-multimedia tailscale fedora-cisco-openh264; do
+for repo in fedora-multimedia tailscale fedora-cisco-openh264; do
     if [[ -f "/etc/yum.repos.d/${repo}.repo" ]]; then
         sed -i 's@enabled=1@enabled=0@g' "/etc/yum.repos.d/${repo}.repo"
     fi
@@ -58,9 +58,9 @@ for i in /etc/yum.repos.d/_copr:*.repo; do
     fi
 done
 
-# NOTE: we won't use dnf5 copr plugin for ublue-os/akmods until our upstream provides the COPR standard naming
-if [[ -f "/etc/yum.repos.d/_copr_ublue-os-akmods.repo" ]]; then
-    sed -i 's@enabled=1@enabled=0@g' /etc/yum.repos.d/_copr_ublue-os-akmods.repo
+# Disable canonical ublue-os/akmods COPR file if present
+if [[ -f "/etc/yum.repos.d/_copr:copr.fedorainfracloud.org:ublue-os:akmods.repo" ]]; then
+    sed -i 's@enabled=1@enabled=0@g' /etc/yum.repos.d/_copr:copr.fedorainfracloud.org:ublue-os:akmods.repo
 fi
 
 # Disable RPM Fusion repos

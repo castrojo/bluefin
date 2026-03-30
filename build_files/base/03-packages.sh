@@ -6,6 +6,43 @@ set -ouex pipefail
 
 # All DNF-related operations should be done here whenever possible
 
+# use negativo17 for 3rd party packages with higher priority than default
+# mitigate upstream packaging bug: https://bugzilla.redhat.com/show_bug.cgi?id=2332429
+# swap the incorrectly installed OpenCL-ICD-Loader for ocl-icd, the expected package
+# TODO: remove me when F42 dropped, F43 is not affected
+if [[ "$(rpm -E %fedora)" == "42" ]]; then
+dnf5 -y swap --repo='fedora' \
+    OpenCL-ICD-Loader ocl-icd
+fi
+
+if ! grep -q fedora-multimedia <(dnf5 repolist); then
+    # Enable or Install Repofile
+    dnf5 config-manager setopt fedora-multimedia.enabled=1 ||
+        dnf5 config-manager addrepo --from-repofile="https://negativo17.org/repos/fedora-multimedia.repo"
+fi
+# Set higher priority
+dnf5 config-manager setopt fedora-multimedia.priority=90
+
+# use override to replace mesa and others with less crippled versions
+OVERRIDES=(
+    "intel-gmmlib"
+    "intel-mediasdk"
+    "intel-vpl-gpu-rt"
+    "libheif"
+    "libva"
+    "libva-intel-media-driver"
+    "mesa-dri-drivers"
+    "mesa-filesystem"
+    "mesa-libEGL"
+    "mesa-libGL"
+    "mesa-libgbm"
+    "mesa-va-drivers"
+    "mesa-vulkan-drivers"
+)
+
+dnf5 distro-sync --skip-unavailable -y --repo='fedora-multimedia' "${OVERRIDES[@]}"
+dnf5 versionlock add "${OVERRIDES[@]}"
+
 # shellcheck source=build_files/shared/copr-helpers.sh
 source /ctx/build_files/shared/copr-helpers.sh
 
@@ -29,6 +66,7 @@ FEDORA_PACKAGES=(
     cryfs
     davfs2
     ddcutil
+    distrobox
     evtest
     fastfetch
     firewall-config
@@ -49,8 +87,20 @@ FEDORA_PACKAGES=(
     jetbrains-mono-fonts-all
     just
     krb5-workstation
+    libcamera
+    libcamera-ipa
     libgda
     libgda-sqlite
+    libimobiledevice-utils
+    libcamera-gstreamer
+    libcamera-tools
+    libva-utils
+    nvme-cli
+    fzf
+    xhost
+    xorg-x11-xauth
+    apr-util
+    pipewire-plugin-libcamera
     libimobiledevice
     libratbag-ratbagd
     libxcrypt-compat
@@ -95,7 +145,6 @@ case "$FEDORA_MAJOR_VERSION" in
     42)
         FEDORA_PACKAGES+=(
             evolution-ews-core
-            uld
         )
         ;;
     43)
@@ -114,11 +163,28 @@ dnf config-manager addrepo --from-repofile=https://pkgs.tailscale.com/stable/fed
 dnf config-manager setopt tailscale-stable.enabled=0
 dnf -y install --enablerepo='tailscale-stable' tailscale
 
+dnf -y install --enablerepo=fedora-multimedia \
+    -x PackageKit* \
+    ffmpeg \
+    ffmpeg-libs \
+    gstreamer1-plugins-bad-free \
+    gstreamer1-plugins-bad-free-libs \
+    gstreamer1-plugins-base \
+    gstreamer1-plugins-good \
+    lame \
+    lame-libs \
+    libavcodec \
+    libfdk-aac \
+    libjxl \
+    ffmpegthumbnailer
+
 # From che/nerd-fonts
 copr_install_isolated "che/nerd-fonts" "nerd-fonts"
 
 # From ublue-os/packages
-copr_install_isolated "ublue-os/packages" "uupd"
+copr_install_isolated "ublue-os/packages" \
+    "uupd" \
+    "oversteer-udev"
 
 # Version-specific COPR packages
 # case "$FEDORA_MAJOR_VERSION" in
@@ -134,6 +200,9 @@ copr_install_isolated "ublue-os/packages" "uupd"
 
 # Packages to exclude - common to all versions
 EXCLUDED_PACKAGES=(
+    uld
+    fedora-flathub-remote
+    fedora-third-party
     fedora-bookmarks
     fedora-chromium-config
     fedora-chromium-config-gnome

@@ -38,6 +38,18 @@ IMPORTANT_PACKAGES=(
     distrobox
     fish
     flatpak
+    wireguard-tools
+    wl-clipboard
+    usbmuxd
+    libcamera
+    libcamera-ipa
+    pipewire-plugin-libcamera
+    nvme-cli
+    fzf
+    xhost
+    xorg-x11-xauth
+    apr-util
+    oversteer-udev
     mutter
     pipewire
     gnome-shell
@@ -58,6 +70,8 @@ done
 # and are considered footguns
 UNWANTED_PACKAGES=(
     fedora-logos
+    fedora-flathub-remote
+    fedora-third-party
     firefox
     gnome-software
     gnome-software-rpm-ostree
@@ -67,6 +81,23 @@ UNWANTED_PACKAGES=(
 for package in "${UNWANTED_PACKAGES[@]}"; do
     if rpm -q "${package}" >/dev/null 2>&1; then
         echo "Unwanted package found: ${package}... Exiting"; exit 1
+    fi
+done
+
+NEGATIVO_PACKAGES=(
+    mesa-va-drivers
+    libheif
+    ffmpeg
+    ffmpeg-libs
+    libfdk-aac
+)
+
+for package in "${NEGATIVO_PACKAGES[@]}"; do
+    rpm -q "${package}" >/dev/null || { echo "Missing NEGATIVO package: ${package}... Exiting"; exit 1 ; }
+    if ! rpm -qi "${package}" | grep -qi "negativo17"; then
+        echo "Vendor mismatch for ${package}: expected NEGATIVO17... Exiting"
+        rpm -qi "${package}" || true
+        exit 1
     fi
 done
 

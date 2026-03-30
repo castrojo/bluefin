@@ -1,7 +1,6 @@
+ARG BASE_IMAGE_ORG="quay.io/fedora-ostree-desktops"
 ARG BASE_IMAGE_NAME="silverblue"
-ARG FEDORA_MAJOR_VERSION="42"
-ARG SOURCE_IMAGE="${BASE_IMAGE_NAME}-main"
-ARG BASE_IMAGE="ghcr.io/ublue-os/${SOURCE_IMAGE}"
+ARG FEDORA_MAJOR_VERSION="43"
 ARG COMMON_IMAGE="ghcr.io/projectbluefin/common:latest"
 ARG COMMON_IMAGE_SHA=""
 ARG BREW_IMAGE="ghcr.io/ublue-os/brew:latest"
@@ -18,7 +17,7 @@ COPY --from=common /system_files/bluefin /system_files/shared
 COPY --from=brew /system_files /system_files/shared
 
 ## bluefin image section
-FROM ${BASE_IMAGE}:${FEDORA_MAJOR_VERSION} AS base
+FROM ${BASE_IMAGE_ORG}/${BASE_IMAGE_NAME}:${FEDORA_MAJOR_VERSION} AS base
 
 ARG AKMODS_FLAVOR="coreos-stable"
 ARG BASE_IMAGE_NAME="silverblue"

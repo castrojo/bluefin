@@ -1,7 +1,12 @@
 repo_organization := "ublue-os"
+export base_image_org := env("BASE_IMAGE_ORG", "quay.io/fedora-ostree-desktops")
 rechunker_image := "ghcr.io/ublue-os/legacy-rechunk:v1.0.1-x86_64@sha256:2627cbf92ca60ab7372070dcf93b40f457926f301509ffba47a04d6a9e1ddaf7"
 common_image := "ghcr.io/projectbluefin/common:latest"
 brew_image := "ghcr.io/ublue-os/brew:latest"
+stable_version := "43"
+gts_version := "43"
+latest_version := "43"
+beta_version := "44"
 images := '(
     [bluefin]=bluefin
     [bluefin-dx]=bluefin-dx
@@ -12,6 +17,7 @@ flavors := '(
 )'
 tags := '(
     [stable]=stable
+    [gts]=gts
     [latest]=latest
     [beta]=beta
 )'
@@ -130,7 +136,7 @@ build $image="bluefin" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pipelin
     fedora_version=$({{ just }} fedora_version '{{ image }}' '{{ tag }}' '{{ flavor }}' '{{ kernel_pin }}')
 
     # Verify Base Image with cosign
-    {{ just }} verify-container "${base_image_name}-main:${fedora_version}"
+    {{ just }} verify-container quay.io-fedora-ostree-desktops.pub ${base_image_org}/${base_image_name}:${fedora_version}
 
     # Kernel Release/Pin
     if [[ -z "${kernel_pin:-}" ]]; then
@@ -140,16 +146,16 @@ build $image="bluefin" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pipelin
     fi
 
     # Verify Containers with Cosign
-    {{ just }} verify-container "akmods:${akmods_flavor}-${fedora_version}-${kernel_release}"
+    {{ just }} verify-container cosign.pub "ghcr.io/ublue-os/akmods:${akmods_flavor}-${fedora_version}-${kernel_release}"
     if [[ "${akmods_flavor}" =~ coreos ]]; then
-        {{ just }} verify-container "akmods-zfs:${akmods_flavor}-${fedora_version}-${kernel_release}"
+        {{ just }} verify-container cosign.pub "ghcr.io/ublue-os/akmods-zfs:${akmods_flavor}-${fedora_version}-${kernel_release}"
     fi
     if [[ "${flavor}" =~ nvidia-open ]]; then
-        {{ just }} verify-container "akmods-nvidia-open:${akmods_flavor}-${fedora_version}-${kernel_release}"
+        {{ just }} verify-container cosign.pub "ghcr.io/ublue-os/akmods-nvidia-open:${akmods_flavor}-${fedora_version}-${kernel_release}"
     fi
 
-    {{ just }} verify-container "common:latest@${common_image_sha}" ghcr.io/projectbluefin https://raw.githubusercontent.com/projectbluefin/common/refs/heads/main/cosign.pub
-    {{ just }} verify-container "brew:latest@${brew_image_sha}" ghcr.io/ublue-os https://raw.githubusercontent.com/ublue-os/brew/refs/heads/main/cosign.pub
+    {{ just }} verify-container https://raw.githubusercontent.com/projectbluefin/common/refs/heads/main/cosign.pub "ghcr.io/projectbluefin/common:latest@${common_image_sha}"
+    {{ just }} verify-container cosign.pub "ghcr.io/ublue-os/brew:latest@${brew_image_sha}"
 
     # Get Version
     if [[ "${tag}" =~ stable ]]; then
@@ -177,6 +183,7 @@ build $image="bluefin" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pipelin
         target="dx"
     fi
     BUILD_ARGS+=("--build-arg" "AKMODS_FLAVOR=${akmods_flavor}")
+    BUILD_ARGS+=("--build-arg" "BASE_IMAGE_ORG=${base_image_org}")
     BUILD_ARGS+=("--build-arg" "BASE_IMAGE_NAME=${base_image_name}")
     BUILD_ARGS+=("--build-arg" "COMMON_IMAGE={{ common_image }}")
     BUILD_ARGS+=("--build-arg" "COMMON_IMAGE_SHA=${common_image_sha}")
@@ -325,7 +332,7 @@ rechunk $image="bluefin" $tag="latest" $flavor="main" ghcr="0" pipeline="0":
 
     # Cleanup Space during Github Action
     if [[ "{{ ghcr }}" == "1" ]]; then
-        base_image_name=silverblue-main
+        base_image_name=silverblue
         if [[ "${tag}" =~ stable ]]; then
             tag="stable-daily"
         fi
@@ -467,7 +474,7 @@ changelogs branch="stable" handwritten="":
 
 # Verify Container with Cosign
 [group('Utility')]
-verify-container container="" registry="ghcr.io/ublue-os" key="":
+verify-container key="" container="":
     #!/usr/bin/bash
     set -eou pipefail
 
@@ -486,14 +493,8 @@ verify-container container="" registry="ghcr.io/ublue-os" key="":
         fi
     fi
 
-    # Public Key for Container Verification
-    key={{ key }}
-    if [[ -z "${key:-}" ]]; then
-        key="https://raw.githubusercontent.com/ublue-os/main/main/cosign.pub"
-    fi
-
     # Verify Container using cosign public key
-    if ! cosign verify --key "${key}" "{{ registry }}"/"{{ container }}" >/dev/null; then
+    if ! cosign verify --key "{{ key }}" "{{ container }}" >/dev/null; then
         echo "NOTICE: Verification failed. Please ensure your public key is correct."
         exit 1
     fi
@@ -556,15 +557,16 @@ fedora_version image="bluefin" tag="latest" flavor="main" $kernel_pin="":
     #!/usr/bin/bash
     set -eou pipefail
     {{ just }} validate {{ image }} {{ tag }} {{ flavor }}
-    if [[ ! -f /tmp/manifest.json ]]; then
-        if [[ "{{ tag }}" =~ stable ]]; then
-            # CoreOS does not uses cosign
-            skopeo inspect --retry-times 3 docker://quay.io/fedora/fedora-coreos:stable > /tmp/manifest.json
-        else
-            skopeo inspect --retry-times 3 docker://ghcr.io/ublue-os/base-main:"{{ tag }}" > /tmp/manifest.json
-        fi
+
+    # Determine Version
+    if [[ "{{ tag }}" =~ stable|gts ]]; then
+        fedora_version="{{ stable_version }}"
+    elif [[ "{{ tag }}" =~ beta ]]; then
+        fedora_version="{{ beta_version }}"
+    else
+        fedora_version="{{ latest_version }}"
     fi
-    fedora_version=$(jq -r '.Labels["org.opencontainers.image.version"]' < /tmp/manifest.json | grep -oP '^[0-9]+')
+
     if [[ -n "${kernel_pin:-}" ]]; then
         fedora_version=$(echo "${kernel_pin}" | grep -oP 'fc\K[0-9]+')
     fi
