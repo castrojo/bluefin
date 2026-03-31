@@ -33,16 +33,16 @@ dnf5 -y install \
 
 dnf5 versionlock add kernel kernel-devel kernel-devel-matched kernel-core kernel-modules kernel-modules-core kernel-modules-extra
 
-dnf copr enable -y ublue-os/akmods
-
 mkdir -p /etc/pki/akmods/certs
-ghcurl "https://github.com/ublue-os/akmods/raw/refs/heads/main/certs/public_key.der" --retry 3 -Lo /etc/pki/akmods/certs/akmods-ublue.der
-grep -F -e "Universal Blue" /etc/pki/akmods/certs/akmods-ublue.der
+AKMODS_KEY_URL="https://raw.githubusercontent.com/ublue-os/akmods/4dbb8996dacc6601eab70852ba1e383a669e2969/certs/public_key.der"
+AKMODS_KEY_SHA256="4e5c68474cb133fd8984d9599762cece9100c3e6cd8a9709aeaabd85dd9e70d1"
+ghcurl "${AKMODS_KEY_URL}" --retry 3 -Lo /etc/pki/akmods/certs/akmods-ublue.der
+echo "${AKMODS_KEY_SHA256}  /etc/pki/akmods/certs/akmods-ublue.der" | sha256sum -c -
 
 # RPMFUSION Dependent AKMODS
 if [[ "${UBLUE_IMAGE_TAG}" == "beta" ]]; then
-    dnf5 -y install /tmp/akmods/kmods/*openrazer*.rpm || true
-    dnf5 -y install /tmp/akmods/kmods/*framework-laptop*.rpm || true
+    dnf5 -y install /tmp/akmods/common/*openrazer*.rpm /tmp/akmods/kmods/*openrazer*.rpm || true
+    dnf5 -y install /tmp/akmods/common/*framework-laptop*.rpm /tmp/akmods/kmods/*framework-laptop*.rpm || true
     dnf5 -y install \
         https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-"$(rpm -E %fedora)".noarch.rpm || true
     dnf5 -y install \
@@ -53,6 +53,8 @@ if [[ "${UBLUE_IMAGE_TAG}" == "beta" ]]; then
     dnf5 -y remove rpmfusion-nonfree-release || true
 else
     dnf5 -y install \
+        /tmp/akmods/common/*openrazer*.rpm \
+        /tmp/akmods/common/*framework-laptop*.rpm \
         /tmp/akmods/kmods/*openrazer*.rpm \
         /tmp/akmods/kmods/*framework-laptop*.rpm
     dnf5 -y install \
@@ -119,7 +121,5 @@ if [[ ${AKMODS_FLAVOR} =~ coreos ]]; then
     depmod -a -v "${KERNEL}"
     echo "zfs" >/usr/lib/modules-load.d/zfs.conf
 fi
-
-dnf copr disable -y ublue-os/akmods
 
 echo "::endgroup::"

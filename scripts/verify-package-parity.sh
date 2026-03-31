@@ -10,8 +10,20 @@ fi
 CANDIDATE_IMAGE="$1"
 REFERENCE_IMAGE="$2"
 
-WORKDIR="$(mktemp -d)"
-trap 'rm -rf "$WORKDIR"' EXIT
+WORKDIR_CREATED=0
+if [[ -n "${WORKDIR:-}" ]]; then
+    WORKDIR="${WORKDIR}"
+    mkdir -p "${WORKDIR}"
+else
+    WORKDIR="$(mktemp -d)"
+    WORKDIR_CREATED=1
+fi
+
+if [[ -z "${KEEP_WORKDIR:-}" && "${WORKDIR_CREATED}" -eq 1 ]]; then
+    trap 'rm -rf "$WORKDIR"' EXIT
+elif [[ -n "${KEEP_WORKDIR:-}" ]]; then
+    echo "Keeping reports in ${WORKDIR}"
+fi
 
 CANDIDATE_MANIFEST="$WORKDIR/candidate.txt"
 REFERENCE_MANIFEST="$WORKDIR/reference.txt"
@@ -75,8 +87,9 @@ while IFS= read -r pkg; do
 done <"${MISSING_REPORT}"
 
 vendor_fail=0
+vendor_info="$(podman run --rm --entrypoint /usr/bin/rpm "${CANDIDATE_IMAGE}" -q --qf '%{NAME} %{VENDOR}\n' "${NEGATIVO_PACKAGES[@]}" 2>/dev/null || true)"
 for package in "${NEGATIVO_PACKAGES[@]}"; do
-    if ! podman run --rm --entrypoint /usr/bin/rpm "${CANDIDATE_IMAGE}" -qi "${package}" 2>/dev/null | grep -qi "negativo17"; then
+    if ! grep -i -E "^${package}[[:space:]]+.*negativo17" <<<"${vendor_info}" >/dev/null; then
         echo "FAIL: NEGATIVO vendor mismatch for ${package}"
         vendor_fail=1
     fi

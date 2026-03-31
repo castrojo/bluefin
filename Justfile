@@ -336,7 +336,7 @@ rechunk $image="bluefin" $tag="latest" $flavor="main" ghcr="0" pipeline="0":
         if [[ "${tag}" =~ stable ]]; then
             tag="stable-daily"
         fi
-        ID=$(${SUDOIF} ${PODMAN} images --filter reference=ghcr.io/{{ repo_organization }}/"${base_image_name}":${fedora_version} --format "{{ '{{.ID}}' }}")
+        ID=$(${SUDOIF} ${PODMAN} images --filter reference=${base_image_org}/"${base_image_name}":${fedora_version} --format "{{ '{{.ID}}' }}")
         if [[ -n "$ID" ]]; then
             ${PODMAN} rmi "$ID"
         fi
@@ -559,8 +559,10 @@ fedora_version image="bluefin" tag="latest" flavor="main" $kernel_pin="":
     {{ just }} validate {{ image }} {{ tag }} {{ flavor }}
 
     # Determine Version
-    if [[ "{{ tag }}" =~ stable|gts ]]; then
+    if [[ "{{ tag }}" =~ stable ]]; then
         fedora_version="{{ stable_version }}"
+    elif [[ "{{ tag }}" =~ gts ]]; then
+        fedora_version="{{ gts_version }}"
     elif [[ "{{ tag }}" =~ beta ]]; then
         fedora_version="{{ beta_version }}"
     else
@@ -687,8 +689,8 @@ setup-cache $image="bluefin" $tag="latest" $ghcr="0" $github_event="0":
     #!/usr/bin/bash
     set -eou pipefail
 
-    image_name=$({{ just }} image_name '{{ image }}')
-    fedora_version=$({{ just }} fedora_version '{{ image }}' '{{ tag }}')
+    image_name=$({{ just }} image_name '{{ image }}' '{{ tag }}' 'main')
+    fedora_version=$({{ just }} fedora_version '{{ image }}' '{{ tag }}' 'main')
 
     ALLOW_CACHE_WRITE="false"
 

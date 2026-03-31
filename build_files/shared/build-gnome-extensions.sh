@@ -13,6 +13,18 @@ dnf5 -y install glib2-devel meson sassc cmake dbus-devel
 glib-compile-schemas --strict /usr/share/gnome-shell/extensions/appindicatorsupport@rgcjonas.gmail.com/schemas
 
 # Bazaar Companion
+echo "Verifying Bazaar Companion source from https://github.com/AlexanderVanhee/bazaar-companion.git at commit $(git -C /usr/share/gnome-shell/extensions/tmp/bazaar-integration@kolunmi.github.io rev-parse HEAD)"
+BAZAAR_COMPANION_SRC_SHA256="44a1af56656c07ac56f681ec1cca48f11c0ba7f4aff43c45b301526c127e1f5a"
+BAZAAR_COMPANION_SRC_ACTUAL_SHA256="$({
+    tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner -cf - \
+        -C /usr/share/gnome-shell/extensions/tmp/bazaar-integration@kolunmi.github.io src
+} | sha256sum | cut -d' ' -f1)"
+if [[ "${BAZAAR_COMPANION_SRC_ACTUAL_SHA256}" != "${BAZAAR_COMPANION_SRC_SHA256}" ]]; then
+    echo "Bazaar Companion source checksum mismatch"
+    echo "Expected: ${BAZAAR_COMPANION_SRC_SHA256}"
+    echo "Actual:   ${BAZAAR_COMPANION_SRC_ACTUAL_SHA256}"
+    exit 1
+fi
 mv /usr/share/gnome-shell/extensions/tmp/bazaar-integration@kolunmi.github.io/src/ /usr/share/gnome-shell/extensions/bazaar-integration@kolunmi.github.io/
 
 # Blur My Shell

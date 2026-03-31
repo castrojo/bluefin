@@ -15,12 +15,10 @@ dnf5 -y swap --repo='fedora' \
     OpenCL-ICD-Loader ocl-icd
 fi
 
-if ! grep -q fedora-multimedia <(dnf5 repolist); then
-    # Enable or Install Repofile
-    dnf5 config-manager setopt fedora-multimedia.enabled=1 ||
-        dnf5 config-manager addrepo --from-repofile="https://negativo17.org/repos/fedora-multimedia.repo"
+if ! dnf5 repolist --all | grep -q '^fedora-multimedia'; then
+    dnf5 config-manager addrepo --from-repofile="https://negativo17.org/repos/fedora-multimedia.repo"
 fi
-# Set higher priority
+dnf5 config-manager setopt fedora-multimedia.enabled=0
 dnf5 config-manager setopt fedora-multimedia.priority=90
 
 # use override to replace mesa and others with less crippled versions
