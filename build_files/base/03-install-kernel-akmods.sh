@@ -4,6 +4,14 @@ echo "::group:: ===$(basename "$0")==="
 
 set -eoux pipefail
 
+# Skip kernel/akmods installation on sealed builds where the base image
+# already provides the correct kernel (KERNEL arg not set)
+if [[ -z "${KERNEL:-}" ]]; then
+    echo "KERNEL not set — skipping kernel/akmods installation (sealed build mode)"
+    echo "::endgroup::"
+    exit 0
+fi
+
 # Beta Updates Testing Repo...
 if [[ "${UBLUE_IMAGE_TAG}" == "beta" ]]; then
     dnf5 config-manager setopt updates-testing.enabled=1

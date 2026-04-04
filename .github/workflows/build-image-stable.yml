@@ -1,18 +1,6 @@
 name: Stable Images
 on:
-  merge_group: # Make Stable-Daily run on merge groups
-  pull_request:
-    branches:
-      - main
-      - testing
-    paths-ignore:
-      - "**.md"
-      - ".github/workflows/*validate*.yml"
-      - "system_files/shared/etc/bazaar/**"
-  schedule:
-    - cron: "0 1 * * TUE" # Every Tuesday at 1:00 AM UTC (same as bluefin-lts)
-  workflow_call:
-  workflow_dispatch:
+  workflow_dispatch:    # silenced — sealed workflow is the active build in this fork
 
 permissions:
   contents: read

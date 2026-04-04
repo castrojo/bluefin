@@ -15,7 +15,10 @@ systemctl enable brew-setup.service
 systemctl enable dconf-update.service
 systemctl enable flatpak-nuke-fedora.service
 systemctl enable input-remapper.service
-systemctl enable rpm-ostree-countme.service
+# rpm-ostree units are only present on non-sealed images
+if command -v rpm-ostree >/dev/null 2>&1; then
+    systemctl enable rpm-ostree-countme.service
+fi
 systemctl enable tailscaled.service
 systemctl enable ublue-system-setup.service
 
@@ -28,7 +31,9 @@ fi
 systemctl enable uupd.timer
 
 #disable the old rpm-ostreed-automatic.timer
-systemctl disable rpm-ostreed-automatic.timer
+if command -v rpm-ostree >/dev/null 2>&1; then
+    systemctl disable rpm-ostreed-automatic.timer
+fi
 
 # Hide Desktop Files. Hidden removes mime associations
 for file in fish htop nvtop; do

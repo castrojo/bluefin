@@ -1,0 +1,154 @@
+name: Sealed Image
+
+# Publishes ghcr.io/castrojo/bluefin:sealed
+# Standalone workflow — does NOT call reusable-build.yml.
+# Offset schedule (+1h) from travier's 0 4 MON so their F44 base lands first.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 5 * * MON'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'Containerfile.sealed'
+      - 'build_files/**'
+      - 'system_files/**'
+      - '.github/workflows/build-image-sealed.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}  # locked at workflow level; explicit per-job below
+
+jobs:
+  build-sealed:
+    name: Build and push sealed image
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+      id-token: write  # cosign OIDC
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          submodules: recursive
+
+      - name: Maximize build space
+        uses: ublue-os/remove-unwanted-software@695eb75bc387dbcd9685a8e72d23439d8686cba6 # v10
+
+      - name: Install tools
+        run: |
+          sudo apt-get install -y skopeo jq
+          # Ensure buildah >= 1.29 for RUN --mount=type=bind,from=<stage>
+          buildah version
+
+      - name: Resolve base image digest (pin for entire build — no race)
+        id: base
+        run: |
+          for attempt in 1 2 3; do
+            digest=$(skopeo inspect --format '{{.Digest}}' \
+              docker://ghcr.io/travier/fedora-atomic-desktops-sealed/silverblue:latest 2>/dev/null) \
+              && break || sleep 15
+          done
+          [ -n "${digest:-}" ] || { echo "ERROR: could not resolve travier base digest"; exit 1; }
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+          echo "Sealed base: ghcr.io/travier/fedora-atomic-desktops-sealed/silverblue@${digest}"
+
+      - name: Resolve support image digests
+        id: support
+        run: |
+          common_sha=$(yq -r '.images[] | select(.name == "common") | .digest' image-versions.yml)
+          brew_sha=$(yq -r '.images[] | select(.name == "brew") | .digest' image-versions.yml)
+          [ -n "${common_sha}" ] || { echo "ERROR: common digest missing from image-versions.yml"; exit 1; }
+          [ -n "${brew_sha}" ]   || { echo "ERROR: brew digest missing from image-versions.yml"; exit 1; }
+          echo "common_sha=${common_sha}" >> "$GITHUB_OUTPUT"
+          echo "brew_sha=${brew_sha}"     >> "$GITHUB_OUTPUT"
+
+      - name: Login to GHCR
+        if: github.event_name != 'pull_request'
+        run: |
+          printf '%s' "${{ secrets.GITHUB_TOKEN }}" | \
+            sudo podman login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build sealed image
+        id: build
+        run: |
+          DATE_TAG=$(date +%Y%m%d)
+          sudo --preserve-env=SECUREBOOT_KEY,SECUREBOOT_CRT,GITHUB_TOKEN \
+            buildah build \
+              --secret id=secureboot_key,env=SECUREBOOT_KEY \
+              --secret id=secureboot_crt,env=SECUREBOOT_CRT \
+              --secret id=GITHUB_TOKEN,env=GITHUB_TOKEN \
+              --security-opt label=disable \
+              --skip-unused-stages=false \
+              --build-arg "BASE_DIGEST=${{ steps.base.outputs.digest }}" \
+              --build-arg "COMMON_IMAGE_SHA=${{ steps.support.outputs.common_sha }}" \
+              --build-arg "BREW_IMAGE_SHA=${{ steps.support.outputs.brew_sha }}" \
+              --build-arg "FEDORA_MAJOR_VERSION=44" \
+              --build-arg "IMAGE_NAME=bluefin" \
+              --build-arg "IMAGE_VENDOR=castrojo" \
+              --build-arg "IMAGE_FLAVOR=main" \
+              --build-arg "UBLUE_IMAGE_TAG=latest" \
+              --build-arg "SHA_HEAD_SHORT=$(git rev-parse --short HEAD)" \
+              --build-arg "VERSION=44.${DATE_TAG}" \
+              -f Containerfile.sealed \
+              -t "ghcr.io/castrojo/bluefin:sealed" \
+              -t "ghcr.io/castrojo/bluefin:sealed-${DATE_TAG}" \
+              .
+        env:
+          SECUREBOOT_KEY: ${{ secrets.SECUREBOOT_KEY }}
+          SECUREBOOT_CRT: ${{ secrets.SECUREBOOT_CRT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push to GHCR
+        id: push
+        if: github.event_name != 'pull_request'
+        run: |
+          sudo --preserve-env=GITHUB_TOKEN \
+            podman push ghcr.io/castrojo/bluefin:sealed
+          DATE_TAG=$(date +%Y%m%d)
+          sudo --preserve-env=GITHUB_TOKEN \
+            podman push "ghcr.io/castrojo/bluefin:sealed-${DATE_TAG}"
+          # Resolve digest for signing
+          for attempt in 1 2 3; do
+            digest=$(skopeo inspect --format '{{.Digest}}' \
+              docker://ghcr.io/castrojo/bluefin:sealed 2>/dev/null) \
+              && break || sleep 10
+          done
+          [ -n "${digest:-}" ] || { echo "ERROR: could not resolve pushed digest"; exit 1; }
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+
+      - name: Install cosign
+        if: github.event_name != 'pull_request'
+        uses: sigstore/cosign-installer@7e8b541eb2e61bf99390e1afd4be13a184e9ebc5 # v3.10.1
+
+      - name: Sign image
+        if: github.event_name != 'pull_request'
+        run: |
+          cosign sign -y --key env://COSIGN_PRIVATE_KEY \
+            "ghcr.io/castrojo/bluefin@${{ steps.push.outputs.digest }}"
+        env:
+          COSIGN_EXPERIMENTAL: "false"
+          COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
+
+  check:
+    name: Check sealed build successful
+    if: always()
+    runs-on: ubuntu-latest
+    needs: [build-sealed]
+    steps:
+      - name: Check all jobs
+        env:
+          JOBS: ${{ toJson(needs) }}
+        run: |
+          for result in $(echo "$JOBS" | jq -r 'to_entries[] | .value.result'); do
+            if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
+              echo "Job failed with result: $result"
+              exit 1
+            fi
+          done
+          echo "All jobs passed"

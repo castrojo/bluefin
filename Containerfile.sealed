@@ -1,0 +1,190 @@
+# Containerfile.sealed — Bluefin sealed image pipeline
+# Produces ghcr.io/castrojo/bluefin:sealed using bootc composefs integrity.
+#
+# Key difference from Containerfile: uses travier's F44 sealed base
+# (rpm-ostree removed, composefs enabled, systemd-boot installed) and
+# generates a fresh UKI signed with Bluefin's own Secure Boot keys.
+#
+# amd64 only for v1. aarch64 requires systemd-bootaa64.efi handling.
+
+ARG FEDORA_MAJOR_VERSION="44"
+ARG BASE_IMAGE="ghcr.io/travier/fedora-atomic-desktops-sealed/silverblue"
+ARG BASE_TAG="latest"
+ARG BASE_DIGEST=""
+ARG COMMON_IMAGE="ghcr.io/projectbluefin/common"
+ARG COMMON_IMAGE_TAG="latest"
+ARG COMMON_IMAGE_SHA=""
+ARG BREW_IMAGE="ghcr.io/ublue-os/brew"
+ARG BREW_IMAGE_TAG="latest"
+ARG BREW_IMAGE_SHA=""
+
+# ── Stage 1: Support images ────────────────────────────────────────────────
+FROM ${COMMON_IMAGE}:${COMMON_IMAGE_TAG}@${COMMON_IMAGE_SHA} AS common
+FROM ${BREW_IMAGE}:${BREW_IMAGE_TAG}@${BREW_IMAGE_SHA} AS brew
+
+# ── Stage 2: Build context ────────────────────────────────────────────────
+FROM scratch AS ctx
+COPY /system_files /system_files
+COPY /build_files /build_files
+COPY --from=common /system_files/shared /system_files/shared
+COPY --from=common /system_files/bluefin /system_files/shared
+COPY --from=brew /system_files /system_files/shared
+
+# ── Stage 3: Sign systemd-boot with Bluefin's SB keys ─────────────────────
+# Replaces travier's signed copy so users only enroll Bluefin's keys.
+# Falls back to unsigned if SECUREBOOT_KEY/SECUREBOOT_CRT are not provided
+# (allows CI builds before secrets are configured).
+FROM registry.fedoraproject.org/fedora-minimal:${FEDORA_MAJOR_VERSION} AS sb-builder
+RUN microdnf install -y systemd-boot-unsigned sbsigntools && microdnf clean all
+RUN --mount=type=secret,id=secureboot_key \
+    --mount=type=secret,id=secureboot_crt \
+    if [ -s /run/secrets/secureboot_key ] && [ -s /run/secrets/secureboot_crt ]; then \
+        sbsign --key /run/secrets/secureboot_key \
+               --cert /run/secrets/secureboot_crt \
+               --output /systemd-bootx64.efi \
+               /usr/lib/systemd/boot/efi/systemd-bootx64.efi && \
+        echo "systemd-boot signed with Bluefin SB key"; \
+    else \
+        echo "WARNING: SB keys not provided — copying unsigned systemd-boot"; \
+        cp /usr/lib/systemd/boot/efi/systemd-bootx64.efi /systemd-bootx64.efi; \
+    fi
+
+# ── Stage 4: UKI tools ───────────────────────────────────────────────────
+# Separate stage to keep tool deps out of the final image.
+FROM registry.fedoraproject.org/fedora-minimal:${FEDORA_MAJOR_VERSION} AS uki-tools
+RUN microdnf install -y systemd-ukify sbsigntools jq bootc && microdnf clean all
+RUN mkdir -p /boot/EFI/Linux
+
+# ── Stage 5: Bluefin rootfs on sealed base ───────────────────────────────
+FROM ${BASE_IMAGE}:${BASE_TAG}@${BASE_DIGEST} AS bluefin-sealed
+
+ARG FEDORA_MAJOR_VERSION="44"
+ARG AKMODS_FLAVOR="coreos-stable"
+ARG IMAGE_NAME="bluefin"
+ARG IMAGE_VENDOR="castrojo"
+ARG IMAGE_FLAVOR="main"
+ARG UBLUE_IMAGE_TAG="latest"
+ARG VERSION=""
+ARG SHA_HEAD_SHORT="dedbeef"
+# KERNEL intentionally left empty — sealed base ships its own kernel;
+# 04-install-kernel-akmods.sh skips when KERNEL="".
+ARG KERNEL=""
+
+# Replace travier's signed systemd-boot with Bluefin's own
+COPY --from=sb-builder /systemd-bootx64.efi \
+     /usr/lib/systemd/boot/efi/systemd-bootx64.efi
+
+# Build Bluefin package layer
+# Calls build.sh steps directly, skipping 04-install-kernel-akmods.sh
+# (the sealed base already ships the correct F44 kernel)
+RUN --mount=type=cache,dst=/var/cache/libdnf5 \
+    --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=secret,id=GITHUB_TOKEN \
+    <<'EORUN'
+set -eoux pipefail
+
+# ── Preamble (from build.sh) ──────────────────────────────────────────────
+# Replace fedora-logos. The sealed base retains fedora-logos; use dnf5
+# since dnf4 compatibility may be absent when rpm-ostree is removed.
+dnf5 -y swap fedora-logos generic-logos || true
+rpm --erase --nodeps --nodb generic-logos 2>/dev/null || true
+
+rsync -rvK /ctx/system_files/shared/ /
+
+mkdir -p /tmp/scripts/helpers
+install -Dm0755 /ctx/build_files/shared/utils/ghcurl /tmp/scripts/helpers/ghcurl
+export PATH="/tmp/scripts/helpers:$PATH"
+
+# ── Build steps (04-install-kernel-akmods.sh skipped) ────────────────────
+/ctx/build_files/base/00-image-info.sh
+/ctx/build_files/base/03-packages.sh
+# 04-install-kernel-akmods.sh is skipped — KERNEL="" causes it to exit 0
+/ctx/build_files/base/04-install-kernel-akmods.sh
+/ctx/build_files/base/05-override-install.sh
+/ctx/build_files/shared/build-gnome-extensions.sh
+/ctx/build_files/base/17-cleanup.sh
+/ctx/build_files/base/18-workarounds.sh
+/ctx/build_files/base/19-initramfs.sh
+/ctx/build_files/shared/validate-repos.sh
+/ctx/build_files/shared/clean-stage.sh
+/ctx/build_files/base/20-tests.sh
+EORUN
+
+# Makes /opt writeable for downstream images
+RUN ln -sfn /var/opt /opt
+
+CMD ["/sbin/init"]
+
+RUN bootc container lint
+
+# ── Stage 6: Generate sealed UKI ─────────────────────────────────────────
+# Mounts bluefin-sealed rootfs read-only, computes composefs digest,
+# generates and signs a UKI covering exactly this rootfs.
+FROM uki-tools AS sealed-uki
+RUN --mount=type=tmpfs,target=/tmp \
+    --mount=type=tmpfs,target=/var/tmp \
+    --mount=type=secret,id=secureboot_key \
+    --mount=type=secret,id=secureboot_crt \
+    --mount=type=bind,from=bluefin-sealed,src=/,target=/target,ro \
+    <<'EORUN'
+set -euo pipefail
+set -x
+target="/target"
+
+# Resolve kernel version from the mounted rootfs
+kver=$(bootc container inspect --rootfs "${target}" --json \
+    | jq -er '.kernel.version | select(type=="string" and length>0)') \
+    || true
+# Fallback: parse from RPM DB in target rootfs
+if [ -z "${kver:-}" ] || [ "${kver}" = "null" ]; then
+    kver=$(rpm --dbpath "${target}/usr/lib/sysimage/rpm" -qa \
+        --queryformat '%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}\n' \
+        | grep '^kernel-[0-9]' | head -1 \
+        | sed 's/^kernel-//')
+fi
+[ -n "${kver}" ] && [ "${kver}" != "null" ] || { echo "ERROR: could not resolve kernel version"; exit 1; }
+echo "Kernel version: ${kver}"
+
+# Build UKI args — include SB signing only if key is available
+UKIFY_ARGS=(
+    --measure
+    --output "/boot/EFI/Linux/${kver}.efi"
+)
+if [ -s /run/secrets/secureboot_key ] && [ -s /run/secrets/secureboot_crt ]; then
+    UKIFY_ARGS+=(
+        --signtool sbsign
+        --secureboot-private-key /run/secrets/secureboot_key
+        --secureboot-certificate /run/secrets/secureboot_crt
+    )
+    echo "UKI will be signed with Bluefin SB key"
+else
+    echo "WARNING: SB keys not provided — generating unsigned UKI"
+fi
+
+bootc container ukify --rootfs "${target}" -- "${UKIFY_ARGS[@]}"
+
+# Verify the output exists
+test -f "/boot/EFI/Linux/${kver}.efi" || { echo "ERROR: UKI not generated"; exit 1; }
+echo "UKI generated: /boot/EFI/Linux/${kver}.efi"
+
+# Verify signing if key was provided
+if [ -s /run/secrets/secureboot_key ]; then
+    sbverify --list "/boot/EFI/Linux/${kver}.efi" && echo "UKI signature verified OK"
+fi
+EORUN
+
+# ── Stage 7: Final image ─────────────────────────────────────────────────
+FROM bluefin-sealed AS final
+
+# Remove travier's stale UKI and install Bluefin's signed one
+RUN rm -f /boot/EFI/Linux/*.efi
+COPY --from=sealed-uki /boot/EFI/Linux /boot/EFI/Linux
+
+# Final lint with UKI in place
+RUN bootc container lint
+
+LABEL containers.bootc 1
+LABEL org.opencontainers.image.title="Bluefin Sealed"
+LABEL org.opencontainers.image.description="Bluefin Linux with bootc composefs integrity and Bluefin-signed UKI"
+LABEL org.opencontainers.image.source="https://github.com/castrojo/bluefin"
+LABEL org.opencontainers.image.vendor="castrojo"
