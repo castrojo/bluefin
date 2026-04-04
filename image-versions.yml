@@ -11,3 +11,7 @@ images:
     image: ghcr.io/ublue-os/brew
     tag: latest
     digest: sha256:b7272517e5bc7efa85ae7d98d0362098ece1d0f916e371086411d1938307faf8
+  - name: sealed-base
+    image: ghcr.io/travier/fedora-atomic-desktops-sealed/silverblue
+    tag: latest
+    digest: ""  # resolved at build time via skopeo inspect; updated by Renovate
