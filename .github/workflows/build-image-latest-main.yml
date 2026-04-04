@@ -1,17 +1,6 @@
 name: Latest Images
 on:
-  merge_group:
-  pull_request:
-    branches:
-      - main
-      - testing
-    paths-ignore:
-      - ".github/workflows/*validate*.yml"
-      - "**.md"
-      - "flatpaks/**"
-      - "system_files/shared/etc/bazaar/**"
-  workflow_call:
-  workflow_dispatch:
+  workflow_dispatch:    # silenced — sealed workflow is the active build in this fork
 
 permissions:
   contents: read

@@ -113,11 +113,15 @@ if [[ "${IMAGE_NAME}" =~ nvidia ]]; then
 fi
 
 IMPORTANT_UNITS=(
-    rpm-ostree-countme.timer
     tailscaled.service
     ublue-system-setup.service
     uupd.timer
   )
+
+# rpm-ostree units only exist on non-sealed images
+if command -v rpm-ostree >/dev/null 2>&1; then
+    IMPORTANT_UNITS+=(rpm-ostree-countme.timer)
+fi
 
 for unit in "${IMPORTANT_UNITS[@]}"; do
     if ! systemctl is-enabled "$unit" 2>/dev/null | grep -q "^enabled$"; then
