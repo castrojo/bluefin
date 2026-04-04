@@ -28,7 +28,7 @@ COPY /system_files /system_files
 COPY /build_files /build_files
 COPY --from=common /system_files/shared /system_files/shared
 COPY --from=common /system_files/bluefin /system_files/shared
-COPY --from=brew /system_files /system_files/shared
+COPY --from=brew /system_files/shared/ /system_files/shared/
 
 # ── Stage 3: Sign systemd-boot with Bluefin's SB keys ─────────────────────
 # Replaces travier's signed copy so users only enroll Bluefin's keys.
@@ -98,8 +98,8 @@ export PATH="/tmp/scripts/helpers:$PATH"
 # ── Build steps (04-install-kernel-akmods.sh skipped) ────────────────────
 /ctx/build_files/base/00-image-info.sh
 /ctx/build_files/base/03-packages.sh
-# 04-install-kernel-akmods.sh is skipped — KERNEL="" causes it to exit 0
-/ctx/build_files/base/04-install-kernel-akmods.sh
+# 03-install-kernel-akmods.sh is skipped — KERNEL="" causes it to exit 0
+/ctx/build_files/base/03-install-kernel-akmods.sh
 /ctx/build_files/base/05-override-install.sh
 /ctx/build_files/shared/build-gnome-extensions.sh
 /ctx/build_files/base/17-cleanup.sh
@@ -135,12 +135,10 @@ target="/target"
 kver=$(bootc container inspect --rootfs "${target}" --json \
     | jq -er '.kernel.version | select(type=="string" and length>0)') \
     || true
-# Fallback: parse from RPM DB in target rootfs
+# Fallback: query kernel-core directly from RPM DB in target rootfs
 if [ -z "${kver:-}" ] || [ "${kver}" = "null" ]; then
-    kver=$(rpm --dbpath "${target}/usr/lib/sysimage/rpm" -qa \
-        --queryformat '%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}\n' \
-        | grep '^kernel-[0-9]' | head -1 \
-        | sed 's/^kernel-//')
+    kver=$(rpm --dbpath "${target}/usr/lib/sysimage/rpm" \
+        -q --qf "%{VERSION}-%{RELEASE}.%{ARCH}\n" kernel-core 2>/dev/null | head -1)
 fi
 [ -n "${kver}" ] && [ "${kver}" != "null" ] || { echo "ERROR: could not resolve kernel version"; exit 1; }
 echo "Kernel version: ${kver}"

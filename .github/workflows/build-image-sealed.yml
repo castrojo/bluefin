@@ -48,10 +48,14 @@ jobs:
 
       - name: Login to GHCR
         run: |
-          # Login unconditionally — needed to pull travier base (GHCR requires auth even for public images)
-          # Use gh CLI per policy; pipe token to both rootless and root credential stores
-          gh auth token | skopeo login ghcr.io -u "${{ github.actor }}" --password-stdin
-          gh auth token | sudo podman login ghcr.io -u "${{ github.actor }}" --password-stdin
+          # Write creds to ~/.docker/config.json — checked by skopeo, podman, buildah without --authfile.
+          # Explicitly share with root so sudo buildah/podman pick up the same creds.
+          mkdir -p "${HOME}/.docker"
+          gh auth token | \
+            skopeo login ghcr.io -u "${{ github.actor }}" --password-stdin \
+            --authfile "${HOME}/.docker/config.json"
+          sudo mkdir -p /root/.docker
+          sudo cp "${HOME}/.docker/config.json" /root/.docker/config.json
         env:
           GH_TOKEN: ${{ github.token }}
 
