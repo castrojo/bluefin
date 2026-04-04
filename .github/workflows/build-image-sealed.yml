@@ -46,13 +46,22 @@ jobs:
           # Ensure buildah >= 1.29 for RUN --mount=type=bind,from=<stage>
           buildah version
 
+      - name: Login to GHCR
+        run: |
+          # Login unconditionally — needed to pull travier base (GHCR requires auth even for public images)
+          # Use gh CLI per policy; pipe token to both rootless and root credential stores
+          gh auth token | skopeo login ghcr.io -u "${{ github.actor }}" --password-stdin
+          gh auth token | sudo podman login ghcr.io -u "${{ github.actor }}" --password-stdin
+        env:
+          GH_TOKEN: ${{ github.token }}
+
       - name: Resolve base image digest (pin for entire build — no race)
         id: base
         run: |
           for attempt in 1 2 3; do
             digest=$(skopeo inspect --format '{{.Digest}}' \
-              docker://ghcr.io/travier/fedora-atomic-desktops-sealed/silverblue:latest 2>/dev/null) \
-              && break || sleep 15
+              docker://ghcr.io/travier/fedora-atomic-desktops-sealed/silverblue:latest) \
+              && break || { echo "Attempt ${attempt} failed, retrying..."; sleep 15; }
           done
           [ -n "${digest:-}" ] || { echo "ERROR: could not resolve travier base digest"; exit 1; }
           echo "digest=${digest}" >> "$GITHUB_OUTPUT"
@@ -67,12 +76,6 @@ jobs:
           [ -n "${brew_sha}" ]   || { echo "ERROR: brew digest missing from image-versions.yml"; exit 1; }
           echo "common_sha=${common_sha}" >> "$GITHUB_OUTPUT"
           echo "brew_sha=${brew_sha}"     >> "$GITHUB_OUTPUT"
-
-      - name: Login to GHCR
-        if: github.event_name != 'pull_request'
-        run: |
-          printf '%s' "${{ secrets.GITHUB_TOKEN }}" | \
-            sudo podman login ghcr.io -u "${{ github.actor }}" --password-stdin
 
       - name: Build sealed image
         id: build
@@ -102,25 +105,27 @@ jobs:
         env:
           SECUREBOOT_KEY: ${{ secrets.SECUREBOOT_KEY }}
           SECUREBOOT_CRT: ${{ secrets.SECUREBOOT_CRT }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
 
       - name: Push to GHCR
         id: push
         if: github.event_name != 'pull_request'
         run: |
-          sudo --preserve-env=GITHUB_TOKEN \
-            podman push ghcr.io/castrojo/bluefin:sealed
+          # Auth already in sudo podman's credential store from Login step
+          sudo podman push ghcr.io/castrojo/bluefin:sealed
           DATE_TAG=$(date +%Y%m%d)
-          sudo --preserve-env=GITHUB_TOKEN \
-            podman push "ghcr.io/castrojo/bluefin:sealed-${DATE_TAG}"
+          sudo podman push "ghcr.io/castrojo/bluefin:sealed-${DATE_TAG}"
           # Resolve digest for signing
           for attempt in 1 2 3; do
             digest=$(skopeo inspect --format '{{.Digest}}' \
-              docker://ghcr.io/castrojo/bluefin:sealed 2>/dev/null) \
-              && break || sleep 10
+              docker://ghcr.io/castrojo/bluefin:sealed) \
+              && break || { echo "Attempt ${attempt} failed, retrying..."; sleep 10; }
           done
           [ -n "${digest:-}" ] || { echo "ERROR: could not resolve pushed digest"; exit 1; }
           echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Install cosign
         if: github.event_name != 'pull_request'
