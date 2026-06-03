@@ -1,3 +1,8 @@
+---
+name: security
+description: "Security model for Bluefin — COPR-backed packages, signed container verification, secureboot checks, and trusted source policy."
+---
+
 # Security Model
 
 ## When to use

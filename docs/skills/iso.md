@@ -1,3 +1,8 @@
+---
+name: iso
+description: "ISO building and promotion for projectbluefin/bluefin-iso — build commands, promotion workflow, and prerelease troubleshooting."
+---
+
 # ISO Building and Promotion
 
 ## When to use

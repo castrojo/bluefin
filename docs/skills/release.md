@@ -1,3 +1,8 @@
+---
+name: release
+description: "Release workflow and stream promotion for Bluefin — promoting main to latest/stable, generating release notes, and understanding promotion triggers."
+---
+
 # Release Workflow and Stream Promotion
 
 ## When to use

@@ -1,3 +1,8 @@
+---
+name: lts
+description: "Bluefin LTS variant guidance — how LTS differs from main, LTS promotion workflow, and ISO safety rules."
+---
+
 # Bluefin LTS Variant
 
 ## When to use

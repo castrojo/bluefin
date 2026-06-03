@@ -1,3 +1,8 @@
+---
+name: variants
+description: "Image × tag × flavor matrix for Bluefin — correct image references, branch/tag/flavor mapping, and stream name explanations."
+---
+
 # Image × Tag × Flavor Matrix
 
 ## When to use

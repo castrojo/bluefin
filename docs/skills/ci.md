@@ -1,3 +1,8 @@
+---
+name: ci
+description: "GitHub Actions troubleshooting for Bluefin — workflow failures, promotion behavior, release generation, and automerge."
+---
+
 # CI/CD Troubleshooting
 
 ## When to use

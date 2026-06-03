@@ -1,3 +1,8 @@
+---
+name: packages
+description: "Package management for Bluefin — adding/removing RPMs, COPR rules, Flatpak vs Homebrew decisions, and DX-only package sets."
+---
+
 # Package Management
 
 ## When to use

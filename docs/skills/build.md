@@ -1,3 +1,8 @@
+---
+name: build
+description: "Build, validate, and PR workflow for Bluefin — local image builds, just commands, PR branch policy, and validation gates."
+---
+
 # Build, Validate, and PR Workflow
 
 ## When to use

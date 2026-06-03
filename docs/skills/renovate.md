@@ -1,3 +1,8 @@
+---
+name: renovate
+description: "Renovate PR handling for Bluefin — reviewing dependency PRs, updating renovate.json5, and triggering central Renovate runs."
+---
+
 # Renovate PR Handling
 
 ## When to use
