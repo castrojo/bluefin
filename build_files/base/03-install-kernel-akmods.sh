@@ -79,6 +79,9 @@ if [[ "${IMAGE_NAME}" =~ nvidia ]]; then
         fi
     fi
 
+    # supergfxctl is not available on Fedora 44+; remove it from the upstream install script
+    sed -i 's/VARIANT_PKGS=(supergfxctl)/VARIANT_PKGS=()/g' /tmp/akmods-rpms/ublue-os/nvidia-install.sh
+
     # Install Nvidia RPMs
     IMAGE_NAME="${BASE_IMAGE_NAME}" AKMODNV_PATH="/tmp/akmods-rpms" MULTILIB=0 /tmp/akmods-rpms/ublue-os/nvidia-install.sh
     rm -f /usr/share/vulkan/icd.d/nouveau_icd.*.json
